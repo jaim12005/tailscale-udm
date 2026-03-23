@@ -318,7 +318,19 @@ tailscale_cert() {
 
     # Derive hostname from tailscale status (except for help and list commands)
     if [ "$action" != "help" ] && [ "$action" != "list" ]; then
-        if ! systemctl is-active --quiet tailscaled; then
+        _ts_running=0
+        _ts_attempts=0
+        while [ "$_ts_attempts" -lt 10 ]; do
+            if [ "$(tailscale status --json | jq -r .BackendState)" = "Running" ]; then
+                _ts_running=1
+                break
+            fi
+            _ts_attempts=$((_ts_attempts + 1))
+            if [ "$_ts_attempts" -lt 10 ]; then
+                sleep 2
+            fi
+        done
+        if [ "$_ts_running" -eq 0 ]; then
             echo "Tailscale is not running. Please start Tailscale first."
             exit 1
         fi
